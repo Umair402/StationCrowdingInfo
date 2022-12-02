@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>INS Coursework 2</title>
+        <meta charset="utf-8">
+        <!--CSS styling to improve presentation-->
+        <style>
+            html, body
+            {
+                width: 90%;
+                margin: 0px;
+            }
+            .container
+            {
+                width: 100%;
+            }
+
+            table
+            {
+                border-collapse: collapse;
+                border-spacing: 0;
+            }
+            th, td
+            {
+                padding: 10px 20px;
+                border: 1px solid #000;
+            }
+        </style>
+        <!--add chart.js-->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <!--add jquery-->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.1/jquery.min.js">
+        </script>
+        <!--javascript code goes below-->
+        <script>
+            //takes input from form and finds relevant naptan value and day
+            function getNaptan()
+            {
+                var naptan_list = 
+                [
+                    "940GZZLUPAC",
+                    "940GZZLUKSX",
+                    "940GZZLUEUS",
+                    "940GZZLUWLO",
+                    "940GZZLULNB",
+                    "940GZZLULVT"
+                ];
+                //get index number of selected drop-down option
+                var select = document.getElementById("station");
+                var index = select.selectedIndex;
+                //locate corresponding naptan value
+                var naptan = naptan_list[index];
+                //get the right day
+                select = document.getElementById("day");
+                var day = select.value;
+                //pass both into the main display function
+                displayInfo(naptan, day);
+            };
+            //creates XMLHttpRequest object and gets the relevant info from JSON file 
+            //passes info to functions that display the information
+            function displayInfo(naptan, day)
+            {
+                const xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function()
+                {
+                    if(this.readyState == 4 && this.status == 200)
+                    {
+                        crowdingInfo = JSON.parse(this.responseText);
+                        //create arrays to be used by the bar chart and the table
+                        timebands = makeTimebandsArray(crowdingInfo.timeBands);
+                        percentages = makePercentageArray(crowdingInfo.timeBands);
+                        //call functions to display information
+                        displayBarChart(timebands, percentages);
+                        peakTimes(crowdingInfo.amPeakTimeBand, crowdingInfo.pmPeakTimeBand);
+                        displayTable(timebands, percentages);
+                    };
+                };
+                xhttp.open('GET', 'https://api.tfl.gov.uk/crowding/'+naptan+'/'+day);
+                xhttp.setRequestHeader('app_key', '2bf63dab7ba54aa48a2654de5a390333');
+                xhttp.send();
+            };
+
+            //creates and returns array of all timebands
+            function makeTimebandsArray(timebands)
+            {
+                var timebands_list = [];
+                timebands.forEach
+                (element => 
+                {
+                    timebands_list.push(element.timeBand);
+                });
+                return timebands_list;
+            }
+
+            //creates and returns array of all crowding percentages
+            function makePercentageArray(timebands)
+            {
+                var percentages = [];
+                timebands.forEach
+                (element => 
+                {
+                    percentages.push((element.percentageOfBaseLine * 100).toFixed(0));
+                });
+                return percentages;
+            }
+
+            //create and display the bar chart
+            function displayBarChart(labels, crowding)
+            {
+                //add subheading
+                document.getElementById('subheading').innerHTML = '<h2>Bar Chart Displaying Percentage of Crowding Throughout the Day</h2>';
+                //get chart object from the canvas, if one exists then destroy it to stop repitition
+                let chartStatus = Chart.getChart("myChart");
+                if (chartStatus != undefined)
+                {
+                chartStatus.destroy();
+                }
+                //specify canvas to put the chart in
+                const ctx = document.getElementById('myChart');
+                //data object specifying x and y axis data and the label
+                const data =
+                {
+                    labels: labels,
+                    datasets:
+                    [{
+                    label: "Crowding",
+                    data: crowding,
+                    borderWidth: 1
+                    }]
+                };
+
+                //create a chart object
+                new Chart(ctx,
+                {
+                    type: 'bar',
+                    data: data,
+                    options:
+                    //make chart begin at 0 and end at 100
+                    {scales:{y:{beginAtZero: true, suggestedMax: 100}}}
+                });
+                //add separator line underneath
+                document.getElementById('line').innerHTML = '<hr>'
+            }
+            //displays peak times before and after midday
+            function peakTimes(amPeak, pmPeak)
+            {
+                //clears the peakTimes div to avoid repetition
+                document.getElementById('peakTimes').innerHTML = ''
+                //creates subheading
+                var header = document.createElement('h2');
+                var text = document.createTextNode('Peak time frames')
+                header.appendChild(text);
+                //creates line break
+                var linebr = document.createElement('br');
+                header.appendChild(linebr);
+                //adds subheading to peakTimes div
+                var element = document.getElementById('peakTimes');
+                element.appendChild(header);
+                //displays the AM peak time frame
+                var amPeakTime = document.createTextNode('AM peak time frame: ' + amPeak);
+                element.appendChild(amPeakTime);
+                element.appendChild(linebr);
+                //displays the PM peak time frame
+                var pmPeakTime = document.createTextNode('PM peak time frame: ' + pmPeak);
+                element.appendChild(pmPeakTime);
+                //adds horizontal line to separate the sections
+                var line = document.createElement('hr');
+                element.appendChild(line);
+            }
+
+            //displays a table of all timebands and the corresponding percentages
+            function displayTable(timebands, percentages)
+            {
+                //clear div to avoid repetition
+                document.getElementById('tableOfCrowding').innerHTML = ''
+                //create subheading for table section and add to div
+                let subheading = document.createElement('h2');
+                let text = document.createTextNode('Table of Crowding')
+                subheading.appendChild(text);
+                document.getElementById('tableOfCrowding').appendChild(subheading);
+
+                //create table with head and body, then add to the table div
+                let table = document.createElement('table');
+                let thead = document.createElement('thead');
+                let tbody = document.createElement('tbody');
+                table.appendChild(thead);
+                table.appendChild(tbody);
+                document.getElementById('tableOfCrowding').appendChild(table);
+
+                //create heading row and add to the table
+                let headerRow = document.createElement('tr');
+                let tHeading = document.createElement('th');
+                let pHeading = document.createElement('th');
+                tHeading.innerHTML = 'Time Bands';
+                pHeading.innerHTML = 'Crowding Percentage';
+                headerRow.appendChild(tHeading);
+                headerRow.appendChild(pHeading);
+                thead.appendChild(headerRow);
+
+                //loop through the data and add a row for each timeband-percentage pair
+                for (let i = 0; i < timebands.length; i++)
+                {
+                    let row = document.createElement('tr');
+                    let tData = document.createElement('td');
+                    let pData = document.createElement('td');
+                    tData.innerHTML = timebands[i];
+                    pData.innerHTML = percentages[i].toString()+'%';
+                    row.appendChild(tData);
+                    row.appendChild(pData);
+                    tbody.appendChild(row);
+                }
+            }
+        </script>
+    </head>
+    <body id="body">
+        <div class="container">
+            <!--welcoming message-->
+            <h1>
+                View crowding info at tube stations
+            </h1>
+        </div>
+        <div id="dataInput" class="container">
+            <!--form to input station and day of the week-->
+            <form name="dataInputForm">
+                <div id="stationAndDay">
+                    <hr>
+                    <!--drop-down menu for the station and a label-->
+                    <label for="station">Station: </label>
+                    <select name="station" id="station" required>
+                        <option value="Paddington">Paddington</option>
+                        <option value="King&rsquo;s Cross St Pancras">King&rsquo;s Cross St Pancras</option>
+                        <option value="Euston">Euston</option>
+                        <option value="Waterloo">Waterloo</option>
+                        <option value="London Bridge">London Bridge</option>
+                        <option value="Liverpool Street">Liverpool Street</option>
+                    </select>
+                    <br>
+                    <br>
+                    <!--drop-down menu for the day of the week and a label-->
+                    <label for="day">Day of the week: </label>
+                    <select name="day" id="day" required>
+                        <option value="mon">Monday</option>
+                        <option value="tue">Tuesday</option>
+                        <option value="wed">Wednesday</option>
+                        <option value="thu">Thursday</option>
+                        <option value="fri">Friday</option>
+                    </select>
+                    <br>
+                    <br>
+                    <!--button that calls javascript code above-->
+                    <input type="button" value="View crowding info!" onclick=getNaptan()>
+                    <hr>
+                </div>
+            </form>
+        </div>
+        <!--subheading-->
+        <div id="subheading"></div>
+        <!--div containing canvas element which holds the bar chart-->
+        <div id="barChart" class="container"><canvas id="myChart"></canvas></div>
+        <!--line separator-->
+        <div id="line"></div>
+        <!--div containing the peak AM and PM times-->
+        <div id="peakTimes" class="container"></div>
+        <!--contains the table with crowding data-->
+        <div id="tableOfCrowding" class="container"></div>
+    </body>
+</html>
